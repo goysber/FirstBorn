@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FirstBorn</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+
+body{
+    font-family:Arial;
+    margin:20px;
+    background:#f5f5f5;
+}
+
+.container{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+}
+
+input,button{
+    padding:8px;
+    margin:5px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    border:1px solid #ddd;
+    padding:8px;
+}
+
+th{
+    background:#0078d4;
+    color:white;
+}
+
+.cart{
+    margin-top:20px;
+}
+
+.total{
+    font-size:20px;
+    font-weight:bold;
+    color:green;
+}
+
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<h2>FirstBorn System</h2>
+
+<h3>Upload Inventory Excel</h3>
+
+<input type="file" id="excelFile" accept=".xlsx,.xls">
+
+<hr>
+
+<h3>Inventory</h3>
+
+<input type="text" id="search" placeholder="Search Product">
+
+<button onclick="searchProduct()">Search</button>
+
+<table id="inventoryTable">
+<thead>
+<tr>
+<th>SKU</th>
+<th>Product</th>
+<th>Price</th>
+<th>Qty</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<div class="cart">
+
+<h3>Cart</h3>
+
+<table id="cartTable">
+
+<thead>
+<tr>
+<th>Product</th>
+<th>Price</th>
+<th>Qty</th>
+<th>Subtotal</th>
+</tr>
+</thead>
+
+<tbody></tbody>
+
+</table>
+
+<p class="total">
+Total: ₱<span id="total">0</span>
+</p>
+
+<button onclick="checkout()">
+Checkout
+</button>
+
+</div>
+
+</div>
+
+<script>
+
+let inventory = [];
+let cart = [];
+
+document
+.getElementById("excelFile")
+.addEventListener("change", handleFile);
+
+function handleFile(e){
+
+const file = e.target.files[0];
+
+const reader = new FileReader();
+
+reader.onload = function(event){
+
+const data = new Uint8Array(event.target.result);
+
+const workbook = XLSX.read(data,{
+type:'array'
+});
+
+const firstSheet =
+workbook.SheetNames[0];
+
+const worksheet =
+workbook.Sheets[firstSheet];
+
+inventory =
+XLSX.utils.sheet_to_json(worksheet);
+
+renderInventory(inventory);
+
+};
+
+reader.readAsArrayBuffer(file);
+
+}
+
+function renderInventory(data){
+
+const tbody =
+document.querySelector(
+"#inventoryTable tbody"
+);
+
+tbody.innerHTML="";
+
+data.forEach((item,index)=>{
+
+tbody.innerHTML +=`
+
+<tr>
+<td>${item.SKU}</td>
+<td>${item.ProductName}</td>
+<td>${item.Price}</td>
+<td>${item.Quantity}</td>
+
+<td>
+<button onclick="addToCart(${index})">
+Add
+</button>
+</td>
+
+</tr>
+
+`;
+
+});
+
+}
+
+function searchProduct(){
+
+const keyword =
+document.getElementById("search")
+.value
+.toLowerCase();
+
+let filtered =
+inventory.filter(x =>
+x.ProductName
+.toLowerCase()
+.includes(keyword)
+);
+
+renderInventory(filtered);
+
+}
+
+function addToCart(index){
+
+let item=inventory[index];
+
+if(item.Quantity<=0){
+
+alert("Out of Stock");
+
+return;
+
+}
+
+item.Quantity--;
+
+let existing=
+cart.find(x=>x.SKU===item.SKU);
+
+if(existing){
+
+existing.Qty++;
+
+}
+else{
+
+cart.push({
+
+SKU:item.SKU,
+ProductName:item.ProductName,
+Price:item.Price,
+Qty:1
+
+});
+
+}
+
+renderInventory(inventory);
+
+renderCart();
+
+}
+
+function renderCart(){
+
+let tbody=
+document.querySelector(
+"#cartTable tbody"
+);
+
+tbody.innerHTML="";
+
+let total=0;
+
+cart.forEach(item=>{
+
+let subtotal=
+item.Price*item.Qty;
+
+total+=subtotal;
+
+tbody.innerHTML += `
+
+<tr>
+<td>${item.ProductName}</td>
+<td>${item.Price}</td>
+<td>${item.Qty}</td>
+<td>${subtotal}</td>
+</tr>
+
+`;
+
+});
+
+document
+.getElementById("total")
+.innerText=total.toFixed(2);
+
+}
+
+function checkout(){
+
+if(cart.length===0){
+
+alert("Cart empty");
+
+return;
+
+}
+
+let receipt="SALES RECEIPT\n\n";
+
+cart.forEach(item=>{
+
+receipt+=
+`${item.ProductName}
+x${item.Qty}
+= ${item.Price*item.Qty}\n`;
+
+});
+
+receipt+=
+`\nTOTAL: ${document.getElementById("total").innerText}`;
+
+const blob=
+new Blob(
+[receipt],
+{type:"text/plain"}
+);
+
+const link =
+document.createElement("a");
+
+link.href=
+URL.createObjectURL(blob);
+
+link.download=
+"Receipt.txt";
+
+link.click();
+
+alert("Sale Complete");
+
+cart=[];
+
+renderCart();
+
+}
+
+</script>
+
+</body>
+</html>
